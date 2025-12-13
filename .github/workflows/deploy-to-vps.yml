@@ -1,0 +1,81 @@
+name: Deploy to VPS Servers
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Sync Repository to VPS Servers
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Deploy to VPS 1 (Redis Cluster)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_1 }}
+          username: root
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            cd /root/distributed-systems-redis-experiments || {
+              echo "Repository not found, cloning..."
+              git clone https://github.com/${{ github.repository }}.git /root/distributed-systems-redis-experiments
+              cd /root/distributed-systems-redis-experiments
+            }
+            echo "Pulling latest changes for VPS 1..."
+            git fetch --all
+            git reset --hard origin/${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+            docker-compose down
+            docker-compose up -d --remove-orphans
+            echo "VPS 1 sync completed at $(date)"
+      
+      - name: Deploy to VPS 2 (Replication + Sentinel)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_2 }}
+          username: root
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            cd /root/distributed-systems-redis-experiments || {
+              echo "Repository not found, cloning..."
+              git clone https://github.com/${{ github.repository }}.git /root/distributed-systems-redis-experiments
+              cd /root/distributed-systems-redis-experiments
+            }
+            echo "Pulling latest changes for VPS 2..."
+            git fetch --all
+            git reset --hard origin/${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+            docker-compose down
+            docker-compose up -d --remove-orphans
+            echo "VPS 2 sync completed at $(date)"
+      
+      - name: Deploy to VPS 3 (Client Tester
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_3 }}
+          username: root
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            cd /root/distributed-systems-redis-experiments || {
+              echo "Repository not found, cloning..."
+              git clone https://github.com/${{ github.repository }}.git /root/distributed-systems-redis-experiments
+              cd /root/distributed-systems-redis-experiments
+            }
+            echo "Pulling latest changes for VPS 3..."
+            git fetch --all
+            git reset --hard origin/${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+      
+      - name: Deployment Summary
+        run: |
+          echo "✓ Deployment completed successfully to all 3 VPS servers"
+          echo "  - VPS 1 (Redis Cluster): ${{ secrets.VPS_1 }}"
+          echo "  - VPS 2 (Replication + Sentinel): ${{ secrets.VPS_2 }}"
+          echo "  - VPS 3 (Client Tester): ${{ secrets.VPS_3 }}"
