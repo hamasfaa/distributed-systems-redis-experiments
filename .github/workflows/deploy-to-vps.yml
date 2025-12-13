@@ -28,6 +28,7 @@ jobs:
               git clone https://github.com/${{ github.repository }}.git /root/distributed-systems-redis-experiments
               cd /root/distributed-systems-redis-experiments
             }
+            cd /root/distributed-systems-redis-experiments/setup/vps1-redis-cluster
             echo "Pulling latest changes for VPS 1..."
             git fetch --all
             git reset --hard origin/${{ github.ref_name }}
@@ -48,6 +49,7 @@ jobs:
               git clone https://github.com/${{ github.repository }}.git /root/distributed-systems-redis-experiments
               cd /root/distributed-systems-redis-experiments
             }
+            cd /root/distributed-systems-redis-experiments/setup/vps2-replication-sentinel
             echo "Pulling latest changes for VPS 2..."
             git fetch --all
             git reset --hard origin/${{ github.ref_name }}
@@ -56,7 +58,7 @@ jobs:
             docker-compose up -d --remove-orphans
             echo "VPS 2 sync completed at $(date)"
       
-      - name: Deploy to VPS 3 (Client Tester
+      - name: Deploy to VPS 3 (Client Tester)
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VPS_3 }}
