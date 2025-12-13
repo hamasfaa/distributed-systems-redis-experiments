@@ -33,8 +33,8 @@ jobs:
             git fetch --all
             git reset --hard origin/${{ github.ref_name }}
             git pull origin ${{ github.ref_name }}
-            docker-compose down
-            docker-compose up -d --remove-orphans
+            docker compose down
+            docker compose up -d --remove-orphans
             echo "VPS 1 sync completed at $(date)"
       
       - name: Deploy to VPS 2 (Replication + Sentinel)
@@ -54,8 +54,8 @@ jobs:
             git fetch --all
             git reset --hard origin/${{ github.ref_name }}
             git pull origin ${{ github.ref_name }}
-            docker-compose down
-            docker-compose up -d --remove-orphans
+            docker compose down
+            docker compose up -d --remove-orphans
             echo "VPS 2 sync completed at $(date)"
       
       - name: Deploy to VPS 3 (Client Tester)
