@@ -1,10 +1,10 @@
 version: '3.8'
-
 services:
   # Redis Master
   redis-master:
     image: redis:7.2-alpine
     container_name: redis-master
+    hostname: redis-master
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
@@ -12,6 +12,11 @@ services:
       - redis-master-data:/data
     networks:
       - redis-replication-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   # Redis Replica 1
   redis-replica-1:
@@ -21,7 +26,8 @@ services:
     ports:
       - "6380:6379"
     depends_on:
-      - redis-master
+      redis-master:
+        condition: service_healthy
     volumes:
       - redis-replica-1-data:/data
     networks:
@@ -35,7 +41,8 @@ services:
     ports:
       - "6381:6379"
     depends_on:
-      - redis-master
+      redis-master:
+        condition: service_healthy
     volumes:
       - redis-replica-2-data:/data
     networks:
@@ -45,13 +52,16 @@ services:
   sentinel-1:
     image: redis:7.2-alpine
     container_name: sentinel-1
-    command: redis-sentinel /etc/redis/sentinel.conf
+    command: >
+      sh -c "until ping -c 1 redis-master > /dev/null 2>&1; do
+        echo 'Waiting for redis-master...';
+        sleep 2;
+      done && redis-sentinel /etc/redis/sentinel.conf"
     ports:
       - "26379:26379"
     depends_on:
-      - redis-master
-      - redis-replica-1
-      - redis-replica-2
+      redis-master:
+        condition: service_healthy
     volumes:
       - ./sentinel-1.conf:/etc/redis/sentinel.conf
       - sentinel-1-data:/data
@@ -62,13 +72,16 @@ services:
   sentinel-2:
     image: redis:7.2-alpine
     container_name: sentinel-2
-    command: redis-sentinel /etc/redis/sentinel.conf
+    command: >
+      sh -c "until ping -c 1 redis-master > /dev/null 2>&1; do
+        echo 'Waiting for redis-master...';
+        sleep 2;
+      done && redis-sentinel /etc/redis/sentinel.conf"
     ports:
       - "26380:26379"
     depends_on:
-      - redis-master
-      - redis-replica-1
-      - redis-replica-2
+      redis-master:
+        condition: service_healthy
     volumes:
       - ./sentinel-2.conf:/etc/redis/sentinel.conf
       - sentinel-2-data:/data
@@ -79,13 +92,16 @@ services:
   sentinel-3:
     image: redis:7.2-alpine
     container_name: sentinel-3
-    command: redis-sentinel /etc/redis/sentinel.conf
+    command: >
+      sh -c "until ping -c 1 redis-master > /dev/null 2>&1; do
+        echo 'Waiting for redis-master...';
+        sleep 2;
+      done && redis-sentinel /etc/redis/sentinel.conf"
     ports:
       - "26381:26379"
     depends_on:
-      - redis-master
-      - redis-replica-1
-      - redis-replica-2
+      redis-master:
+        condition: service_healthy
     volumes:
       - ./sentinel-3.conf:/etc/redis/sentinel.conf
       - sentinel-3-data:/data
@@ -99,6 +115,7 @@ volumes:
   sentinel-1-data:
   sentinel-2-data:
   sentinel-3-data:
+
 
 networks:
   redis-replication-net:
