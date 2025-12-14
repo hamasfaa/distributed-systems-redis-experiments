@@ -52,18 +52,14 @@ services:
   sentinel-1:
     image: redis:7.2-alpine
     container_name: sentinel-1
-    command: >
-      sh -c "until ping -c 1 redis-master > /dev/null 2>&1; do
-        echo 'Waiting for redis-master...';
-        sleep 2;
-      done && redis-sentinel /etc/redis/sentinel.conf"
+    command: sh /sentinel-wrapper.sh
     ports:
       - "26379:26379"
     depends_on:
       redis-master:
         condition: service_healthy
     volumes:
-      - ./sentinel-1.conf:/etc/redis/sentinel.conf
+      - ./sentinel-wrapper.sh:/sentinel-wrapper.sh:ro
       - sentinel-1-data:/data
     networks:
       - redis-replication-net
@@ -72,18 +68,14 @@ services:
   sentinel-2:
     image: redis:7.2-alpine
     container_name: sentinel-2
-    command: >
-      sh -c "until ping -c 1 redis-master > /dev/null 2>&1; do
-        echo 'Waiting for redis-master...';
-        sleep 2;
-      done && redis-sentinel /etc/redis/sentinel.conf"
+    command: sh /sentinel-wrapper.sh
     ports:
       - "26380:26379"
     depends_on:
       redis-master:
         condition: service_healthy
     volumes:
-      - ./sentinel-2.conf:/etc/redis/sentinel.conf
+      - ./sentinel-wrapper.sh:/sentinel-wrapper.sh:ro
       - sentinel-2-data:/data
     networks:
       - redis-replication-net
@@ -92,18 +84,14 @@ services:
   sentinel-3:
     image: redis:7.2-alpine
     container_name: sentinel-3
-    command: >
-      sh -c "until ping -c 1 redis-master > /dev/null 2>&1; do
-        echo 'Waiting for redis-master...';
-        sleep 2;
-      done && redis-sentinel /etc/redis/sentinel.conf"
+    command: sh /sentinel-wrapper.sh
     ports:
       - "26381:26379"
     depends_on:
       redis-master:
         condition: service_healthy
     volumes:
-      - ./sentinel-3.conf:/etc/redis/sentinel.conf
+      - ./sentinel-wrapper.sh:/sentinel-wrapper.sh:ro
       - sentinel-3-data:/data
     networks:
       - redis-replication-net
