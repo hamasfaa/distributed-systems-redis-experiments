@@ -197,6 +197,7 @@ def run_scenario_2():
                         'duration_milliseconds': failover_duration_ms,
                         'duration_nanoseconds': failover_duration_ns
                     })
+                    current_master = new_master
             else:
                 # Normal monitoring
                 if iteration % 10 == 0:  # Print every 20 seconds
