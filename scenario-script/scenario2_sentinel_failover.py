@@ -13,44 +13,55 @@ import json
 VPS_PUBLIC_IP = '134.209.106.37'  # IP VPS 
 
 IP_MAP = {
-    # --- DATA NODES (Master & Replica) ---
-    '172.18.0.2': 6379,   # IP Internal redis-master -> Port External 6379
-    '172.18.0.5': 6380,   # IP Internal redis-replica-1 -> Port External 6380
-    '172.18.0.7': 6381,   # IP Internal redis-replica-2 -> Port External 6381
-
-    # --- SENTINEL NODES ---
-    '172.18.0.6': 26379,  # IP Internal sentinel-1 -> Port External 26379
-    '172.18.0.3': 26380,  # IP Internal sentinel-2 -> Port External 26380
-    '172.18.0.4': 26381   # IP Internal sentinel-3 -> Port External 26381
+    '172.18.0.2': 6379,   # redis-master
+    '172.18.0.4': 6380,   # redis-replica-1
+    '172.18.0.3': 6381,   # redis-replica-2
+    '172.18.0.5': 26379,  # sentinel-1
+    '172.18.0.7': 26380,  # sentinel-2
+    '172.18.0.6': 26381   # sentinel-3
 }
 
+# --- 2. HOST NAME MAPPING (IP -> Container Name) ---
+HOST_MAP = {
+    '172.18.0.2': 'redis-master',
+    '172.18.0.4': 'redis-replica-1',
+    '172.18.0.3': 'redis-replica-2',
+    '172.18.0.5': 'sentinel-1',
+    '172.18.0.7': 'sentinel-2',
+    '172.18.0.6': 'sentinel-3'
+}
+
+# Sentinel Connection List (Internal IPs)
 SENTINEL_INTERNAL_HOSTS = [
-    ('172.18.0.6', 26379), # IP Internal sentinel-1
-    ('172.18.0.3', 26379), # IP Internal sentinel-2
-    ('172.18.0.4', 26379)  # IP Internal sentinel-3
+    ('172.18.0.5', 26379),
+    ('172.18.0.7', 26379),
+    ('172.18.0.6', 26379)
 ]
 
 MASTER_NAME = 'mymaster'
 CHECK_INTERVAL = 2  # seconds
 
+def get_node_info(ip):
+    """Helper to get nice string: 'redis-master (172.18.0.2)'"""
+    name = HOST_MAP.get(ip, "Unknown-Host")
+    port = IP_MAP.get(ip, "?")
+    return f"{name} [{ip}] -> Port {port}"
+
 def connect_sentinel():
     """Connect to Redis Sentinel with IP Mapping"""
     try:
-        # LOGIKA BARU: Menerjemahkan IP Internal Sentinel ke External
         mapped_sentinels = []
         print("Connecting to Sentinel Cluster (Mapping Mode)...")
         
         for internal_ip, internal_port in SENTINEL_INTERNAL_HOSTS:
             if internal_ip in IP_MAP:
                 external_port = IP_MAP[internal_ip]
-                print(f"  Mapping: {internal_ip} -> {VPS_PUBLIC_IP}:{external_port}")
                 mapped_sentinels.append((VPS_PUBLIC_IP, external_port))
             else:
                 print(f"  ⚠ Warning: No mapping found for Sentinel {internal_ip}")
         
         if not mapped_sentinels:
             print("✗ No reachable sentinels found in map. Using default...")
-            # Fallback ke konfigurasi manual jika mapping gagal
             sentinel = Sentinel([(VPS_PUBLIC_IP, 26379)], socket_timeout=5)
         else:
             sentinel = Sentinel(mapped_sentinels, socket_timeout=5)
@@ -67,7 +78,6 @@ def get_master_info(sentinel):
         master_address = sentinel.discover_master(MASTER_NAME)
         return master_address
     except Exception as e:
-        # print(f"✗ Failed to get master info: {e}")
         return None
 
 def get_replicas_info(sentinel):
@@ -91,8 +101,8 @@ def test_write(sentinel):
             external_port = IP_MAP[internal_ip]
             master = redis.Redis(host=VPS_PUBLIC_IP, port=external_port, socket_timeout=5, decode_responses=True)
         else:
-            print(f"⚠ Warning: IP {internal_ip} tidak ada di IP_MAP. Coba pakai koneksi standar...")
-            master = sentinel.master_for(MASTER_NAME, socket_timeout=5)
+            print(f"⚠ Warning: IP {internal_ip} not found in IP_MAP. Cannot route connection.")
+            return False, "IP Mapping Error"
 
         test_key = f"failover_test_{datetime.now().timestamp()}"
         master.set(test_key, "test_value")
@@ -106,14 +116,11 @@ def monitor_cluster_state(sentinel):
     replicas = get_replicas_info(sentinel)
     
     if master:
-        print(f"  Master (Internal): {master[0]}:{master[1]}")
-        # Tampilkan juga info mappingnya biar jelas
-        if master[0] in IP_MAP:
-             print(f"  -> Mapped to External: {VPS_PUBLIC_IP}:{IP_MAP[master[0]]}")
+        print(f"  Current Master: {get_node_info(master[0])}")
     
     print(f"  Replicas: {len(replicas)}")
     for i, replica in enumerate(replicas, 1):
-        print(f"    Replica {i}: {replica[0]}:{replica[1]}")
+        print(f"    Replica {i}: {get_node_info(replica[0])}")
     
     return master, replicas
 
@@ -143,7 +150,7 @@ def run_scenario_2():
         print(f"✓ Write successful: {result}")
     else:
         print(f"✗ Write failed: {result}")
-        print("  (TIP: Pastikan IP_MAP di script sudah sesuai dengan 'docker inspect' di VPS)")
+        print("  (TIP: Check your VPS firewall or if docker is running)")
     
     # Monitoring setup
     print("\n" + "="*70)
@@ -153,6 +160,7 @@ def run_scenario_2():
     print("  1. The script is now monitoring the cluster")
     print("  2. Open another terminal (SSH to VPS) and run:")
     print("     docker stop redis-master")
+    print("     (Or stop whichever node is currently the Master)")
     print("  3. Watch the failover happen automatically")
     print("  4. Press Ctrl+C to stop monitoring\n")
     print("-"*70)
@@ -198,16 +206,20 @@ def run_scenario_2():
                     print(f"\n{'='*70}")
                     print(f"[{timestamp}] 🔄 FAILOVER DETECTED!")
                     print(f"{'='*70}")
-                    print(f"  Old Master: {current_master[0]}:{current_master[1]}" if current_master else "Unknown")
-                    print(f"  New Master: {new_master[0]}:{new_master[1]}")
+                    
+                    old_name = get_node_info(current_master[0]) if current_master else "Unknown"
+                    new_name = get_node_info(new_master[0])
+                    
+                    print(f"  Old Master: {old_name}")
+                    print(f"  New Master: {new_name}")
                     print(f"  Failover Duration: {failover_duration:.2f} seconds")
                     print(f"{'='*70}\n")
                     
                     failover_events.append({
                         'timestamp': timestamp,
                         'event': 'Failover completed',
-                        'old_master': f"{current_master[0]}:{current_master[1]}" if current_master else "Unknown",
-                        'new_master': f"{new_master[0]}:{new_master[1]}",
+                        'old_master': old_name,
+                        'new_master': new_name,
                         'duration': failover_duration
                     })
                     
@@ -234,7 +246,8 @@ def run_scenario_2():
                 # Normal monitoring
                 if iteration % 10 == 0:  # Print every 20 seconds
                     replicas = get_replicas_info(sentinel)
-                    print(f"[{timestamp}] Status: Master={new_master[0]}:{new_master[1]}, Replicas={len(replicas)}")
+                    master_node = get_node_info(new_master[0])
+                    print(f"[{timestamp}] Master: {master_node}")
     
     except KeyboardInterrupt:
         print("\n\n✓ Monitoring stopped by user")
