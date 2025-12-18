@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Skenario 2: Failover pada Redis Sentinel
-Tujuan: Menguji leader election otomatis
-Aspek: Leader election, availability, CAP trade-off
+Skenario 2: Failover pada Redis Sentinel (Modified for Local Run)
+Tujuan: Menguji leader election otomatis dari Laptop Lokal
 """
 
 import redis
@@ -11,11 +10,19 @@ import time
 from datetime import datetime
 import json
 
-# Configuration
+VPS_PUBLIC_IP = '134.209.106.37'  # IP VPS 
+
+IP_MAP = {
+    '172.18.0.2': 6379,   # IP Internal redis-master
+    '172.18.0.5': 6380,   # IP Internal redis-replica-1
+    '172.18.0.6': 6381    # IP Internal redis-replica-2
+}
+
+# Configuration Original
 SENTINEL_HOSTS = [
-    ('134.209.106.37', 26379),  # Ganti dengan IP VPS2
-    ('134.209.106.37', 26380),
-    ('134.209.106.37', 26381)
+    (VPS_PUBLIC_IP, 26379),
+    (VPS_PUBLIC_IP, 26380),
+    (VPS_PUBLIC_IP, 26381)
 ]
 MASTER_NAME = 'mymaster'
 CHECK_INTERVAL = 2  # seconds
@@ -49,9 +56,18 @@ def get_replicas_info(sentinel):
         return []
 
 def test_write(sentinel):
-    """Test writing to master"""
+    """Test writing to master (Modified for Local Access)"""
     try:
-        master = sentinel.master_for(MASTER_NAME, socket_timeout=5)
+        master_info = sentinel.discover_master(MASTER_NAME)
+        internal_ip = master_info[0]
+        
+        if internal_ip in IP_MAP:
+            external_port = IP_MAP[internal_ip]
+            master = redis.Redis(host=VPS_PUBLIC_IP, port=external_port, socket_timeout=5, decode_responses=True)
+        else:
+            print(f"⚠ Warning: IP {internal_ip} tidak ada di IP_MAP. Coba pakai koneksi standar...")
+            master = sentinel.master_for(MASTER_NAME, socket_timeout=5)
+
         test_key = f"failover_test_{datetime.now().timestamp()}"
         master.set(test_key, "test_value")
         return True, test_key
@@ -63,7 +79,7 @@ def monitor_cluster_state(sentinel):
     master = get_master_info(sentinel)
     replicas = get_replicas_info(sentinel)
     
-    print(f"  Master: {master[0]}:{master[1]}")
+    print(f"  Master (Internal): {master[0]}:{master[1]}")
     print(f"  Replicas: {len(replicas)}")
     for i, replica in enumerate(replicas, 1):
         print(f"    Replica {i}: {replica[0]}:{replica[1]}")
@@ -73,7 +89,7 @@ def monitor_cluster_state(sentinel):
 def run_scenario_2():
     """Run failover test scenario"""
     print("\n" + "="*70)
-    print("SKENARIO 2: REDIS SENTINEL FAILOVER TEST")
+    print("SKENARIO 2: REDIS SENTINEL FAILOVER TEST (LOCAL MODE)")
     print("="*70 + "\n")
     
     # Connect to Sentinel
@@ -96,6 +112,7 @@ def run_scenario_2():
         print(f"✓ Write successful: {result}")
     else:
         print(f"✗ Write failed: {result}")
+        print("  (TIP: Pastikan IP_MAP di script sudah sesuai dengan 'docker inspect' di VPS)")
     
     # Monitoring setup
     print("\n" + "="*70)
@@ -103,7 +120,7 @@ def run_scenario_2():
     print("="*70)
     print("\n⚠ INSTRUCTIONS:")
     print("  1. The script is now monitoring the cluster")
-    print("  2. Open another terminal and run:")
+    print("  2. Open another terminal (SSH to VPS) and run:")
     print("     docker stop redis-master")
     print("  3. Watch the failover happen automatically")
     print("  4. Press Ctrl+C to stop monitoring\n")
