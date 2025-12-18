@@ -16,18 +16,18 @@ IP_MAP = {
     # --- DATA NODES (Master & Replica) ---
     '172.18.0.2': 6379,   # IP Internal redis-master -> Port External 6379
     '172.18.0.5': 6380,   # IP Internal redis-replica-1 -> Port External 6380
-    '172.18.0.6': 6381,   # IP Internal redis-replica-2 -> Port External 6381
+    '172.18.0.7': 6381,   # IP Internal redis-replica-2 -> Port External 6381
 
     # --- SENTINEL NODES ---
-    '172.18.0.3': 26379,  # IP Internal sentinel-1 -> Port External 26379
-    '172.18.0.4': 26380,  # IP Internal sentinel-2 -> Port External 26380
-    '172.18.0.7': 26381   # IP Internal sentinel-3 -> Port External 26381
+    '172.18.0.4': 26379,  # IP Internal sentinel-1 -> Port External 26379
+    '172.18.0.6': 26380,  # IP Internal sentinel-2 -> Port External 26380
+    '172.18.0.3': 26381   # IP Internal sentinel-3 -> Port External 26381
 }
 
 SENTINEL_INTERNAL_HOSTS = [
-    ('172.18.0.3', 26379), # IP Internal sentinel-1 (Port internal selalu 26379)
-    ('172.18.0.4', 26379), # IP Internal sentinel-2
-    ('172.18.0.7', 26379)  # IP Internal sentinel-3
+    ('172.18.0.4', 26379), # IP Internal sentinel-1
+    ('172.18.0.6', 26379), # IP Internal sentinel-2
+    ('172.18.0.3', 26379)  # IP Internal sentinel-3
 ]
 
 MASTER_NAME = 'mymaster'
