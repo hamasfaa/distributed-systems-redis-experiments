@@ -161,7 +161,7 @@ def run_scenario_2():
                 print(f"[{timestamp}] ⚠ Cannot detect master - Possible failover in progress...")
                 if not failover_detected:
                     failover_detected = True
-                    failover_start_time = time.time()
+                    failover_start_time = time.perf_counter_ns()
                     failover_events.append({
                         'timestamp': timestamp,
                         'event': 'Master down detected',
