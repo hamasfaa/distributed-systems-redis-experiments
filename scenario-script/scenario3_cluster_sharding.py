@@ -6,7 +6,7 @@ Aspek: Partitioning, consistent hashing, scaling out
 """
 
 import redis
-from rediscluster import RedisCluster
+from redis.cluster import RedisCluster
 import time
 from datetime import datetime
 import json
@@ -14,9 +14,9 @@ from collections import defaultdict
 
 # Configuration
 CLUSTER_NODES = [
-    {'host': 'localhost', 'port': 7001},  # Ganti dengan IP VPS1
-    {'host': 'localhost', 'port': 7002},
-    {'host': 'localhost', 'port': 7003},
+    {'host': '139.59.119.65', 'port': 7001},  # Ganti dengan IP VPS1
+    {'host': '139.59.119.65', 'port': 7002},
+    {'host': '139.59.119.65', 'port': 7003},
 ]
 
 NUM_KEYS = 10000
@@ -24,30 +24,17 @@ NUM_KEYS = 10000
 def connect_cluster():
     """Connect to Redis Cluster"""
     try:
-        startup_nodes = CLUSTER_NODES
         cluster = RedisCluster(
-            startup_nodes=startup_nodes,
+            host=CLUSTER_NODES[0]['host'],
+            port=CLUSTER_NODES[0]['port'],
             decode_responses=True,
-            skip_full_coverage_check=True
+            socket_timeout=30
         )
         print(f"✓ Connected to Redis Cluster")
         return cluster
     except Exception as e:
         print(f"✗ Failed to connect to cluster: {e}")
-        print("\nTrying alternate connection method...")
-        try:
-            # Fallback to redis-py-cluster
-            from redis import RedisCluster as RC
-            cluster = RC(
-                host=CLUSTER_NODES[0]['host'],
-                port=CLUSTER_NODES[0]['port'],
-                decode_responses=True
-            )
-            print(f"✓ Connected to Redis Cluster (alternate method)")
-            return cluster
-        except Exception as e2:
-            print(f"✗ Alternate connection also failed: {e2}")
-            return None
+        return None
 
 def get_cluster_info(cluster):
     """Get cluster information"""
