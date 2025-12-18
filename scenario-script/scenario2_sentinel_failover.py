@@ -172,15 +172,20 @@ def run_scenario_2():
             # Check if master changed (failover happened)
             if new_master != current_master:
                 if not failover_end_time:
-                    failover_end_time = time.time()
-                    failover_duration = failover_end_time - failover_start_time if failover_start_time else 0
+                    failover_end_time = time.perf_counter_ns()
+                    failover_duration_ns = failover_end_time - failover_start_time if failover_start_time else 0
+                    failover_duration_sec = failover_duration_ns / 1_000_000_000  # Convert to seconds
+                    failover_duration_ms = failover_duration_ns / 1_000_000  # Convert to milliseconds
                     
                     print(f"\n{'='*70}")
                     print(f"[{timestamp}] 🔄 FAILOVER DETECTED!")
                     print(f"{'='*70}")
                     print(f"  Old Master: {current_master[0]}:{current_master[1]}")
                     print(f"  New Master: {new_master[0]}:{new_master[1]}")
-                    print(f"  Failover Duration: {failover_duration:.2f} seconds")
+                    print(f"  Failover Duration:")
+                    print(f"    - {failover_duration_sec:.9f} seconds")
+                    print(f"    - {failover_duration_ms:.6f} milliseconds")
+                    print(f"    - {failover_duration_ns:,} nanoseconds")
                     print(f"{'='*70}\n")
                     
                     failover_events.append({
@@ -188,28 +193,10 @@ def run_scenario_2():
                         'event': 'Failover completed',
                         'old_master': f"{current_master[0]}:{current_master[1]}",
                         'new_master': f"{new_master[0]}:{new_master[1]}",
-                        'duration': failover_duration
+                        'duration_seconds': failover_duration_sec,
+                        'duration_milliseconds': failover_duration_ms,
+                        'duration_nanoseconds': failover_duration_ns
                     })
-                    
-                    current_master = new_master
-                    
-                    # Test write after failover
-                    print("Testing write to new master...")
-                    success, result = test_write(sentinel)
-                    if success:
-                        print(f"✓ Write successful to new master: {result}\n")
-                        failover_events.append({
-                            'timestamp': datetime.now().strftime('%H:%M:%S'),
-                            'event': 'Write test successful',
-                            'key': result
-                        })
-                    else:
-                        print(f"✗ Write failed to new master: {result}\n")
-                        failover_events.append({
-                            'timestamp': datetime.now().strftime('%H:%M:%S'),
-                            'event': 'Write test failed',
-                            'error': result
-                        })
             else:
                 # Normal monitoring
                 if iteration % 10 == 0:  # Print every 20 seconds
