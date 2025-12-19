@@ -13,7 +13,7 @@ import json
 
 # Configuration
 SENTINEL_HOSTS = [
-    ('134.209.106.37', 26379),  # Ganti dengan IP VPS2
+    ('134.209.106.37', 26379), 
     ('134.209.106.37', 26380),
     ('134.209.106.37', 26381)
 ]
@@ -141,7 +141,7 @@ def run_scenario_2():
     failover_events = []
     current_master = initial_master
     failover_detected = False
-    failover_start_time = None
+    failover_start_time = time.perf_counter_ns()  # Start timing from now
     failover_end_time = None
     
     iteration = 0
@@ -161,7 +161,6 @@ def run_scenario_2():
                 print(f"[{timestamp}] ⚠ Cannot detect master - Possible failover in progress...")
                 if not failover_detected:
                     failover_detected = True
-                    failover_start_time = time.perf_counter_ns()
                     failover_events.append({
                         'timestamp': timestamp,
                         'event': 'Master down detected',
@@ -173,7 +172,7 @@ def run_scenario_2():
             if new_master != current_master:
                 if not failover_end_time:
                     failover_end_time = time.perf_counter_ns()
-                    failover_duration_ns = failover_end_time - failover_start_time if failover_start_time else 0
+                    failover_duration_ns = failover_end_time - failover_start_time
                     failover_duration_sec = failover_duration_ns / 1_000_000_000  # Convert to seconds
                     failover_duration_ms = failover_duration_ns / 1_000_000  # Convert to milliseconds
                     
