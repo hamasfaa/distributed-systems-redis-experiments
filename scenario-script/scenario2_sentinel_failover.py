@@ -202,7 +202,17 @@ def run_scenario_2():
                 # Normal monitoring
                 if iteration % 10 == 0:  # Print every 20 seconds
                     replicas = get_replicas_info(sentinel)
-                    print(f"[{timestamp}] Status: Master={new_master[0]}:{new_master[1]}, Replicas={len(replicas)}")
+                    replica_addresses = []
+                    for r in replicas:
+                        internal_ip, internal_port = r[0], r[1]
+                        external_ip, external_port = map_internal_to_external(internal_ip, internal_port)
+                        replica_addresses.append(f"{external_ip}:{external_port}")
+
+                    print(
+                        f"[{timestamp}] Status: "
+                        f"Master={new_master[0]}:{new_master[1]}, "
+                        f"Replicas={len(replicas)} {replica_addresses}"
+                    )
     
     except KeyboardInterrupt:
         print("\n\n✓ Monitoring stopped by user")
