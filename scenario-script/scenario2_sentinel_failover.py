@@ -141,7 +141,7 @@ def run_scenario_2():
     failover_events = []
     current_master = initial_master
     failover_detected = False
-    failover_start_time = time.perf_counter_ns()  # Start timing from now
+    failover_start_time = None  # Will be set when master down is detected
     failover_end_time = None
     
     iteration = 0
@@ -161,6 +161,7 @@ def run_scenario_2():
                 print(f"[{timestamp}] ⚠ Cannot detect master - Possible failover in progress...")
                 if not failover_detected:
                     failover_detected = True
+                    failover_start_time = time.perf_counter_ns()  # Start timing HERE when master down detected
                     failover_events.append({
                         'timestamp': timestamp,
                         'event': 'Master down detected',
